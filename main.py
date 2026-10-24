@@ -1,3 +1,12 @@
+import json
+import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+llm_api_key = os.getenv("OpenAI_API_Key")
+
+# MOCK DATA
 events = [
     {
         "TimeGenerated": "2026-10-22T14:00:00Z",
@@ -67,8 +76,10 @@ events = [
     }
 ]
 
+# Threshold of amount of accounts a given IP address has failed to log into.
 threshold = 2
 
+# Function that filters all logs where the failure was due to incorrect credentials and where the IP address has failed to log into a minimum of 2 accounts (the threshold).
 def password_spray_assessment(events, threshold):
     failed_password_events = []
     failure_counts_by_user_ip = {}
@@ -89,4 +100,36 @@ def password_spray_assessment(events, threshold):
             suspicious_ip_and_accounts[object] = failure_counts_by_user_ip[object]
     return suspicious_ip_and_accounts
 
-print(password_spray_assessment(events, threshold))
+findings = password_spray_assessment(events, threshold)
+
+#Converts the findings to JSON in preperation to export to an LLM API.
+findings_json = json.dumps(findings)
+
+#Instructions to the LLM using an f string to incorporate mutable upstream code.
+summary_instructions = f"Here I am providing you with aggregated findings for IP addresses that have attempted to log into the minimum {threshold} amount of distinct accounts or more, with a ResultType of '50126' as per Entra logs. Please summarize the findings in no more than 3 sentences, using only the supplied evidence. Describe possible spraying without claiming confirmed compromise."
+
+#LLM API Header: Intertwines the authorization/API key along with the data type that's going to follow in the body.
+headers = {
+     "Authorization": f"Bearer {llm_api_key}",
+     "Content-Type": "application/json"
+}
+
+#LLM API body: Tells the LLM Model what model to process the input and instructions through.
+body = {
+    "model": "gpt-6.1-sol",
+    "instructions": summary_instructions,
+    "input": findings_json
+}
+
+#Sends the body and headers through the URL using the API (requests) package.
+response = requests.post(
+    url="https://api.openai.com/v1/responses",
+    headers=headers,
+    json=body,
+    timeout=60
+)
+
+#Loads the response as a Python structure, references the text output of the instructions provided and prints it for the user/SOC analyst.
+response_data = json.loads(response.text)
+message = response_data['output'][0]['content'][0]['text']
+print(message)

@@ -122,14 +122,23 @@ body = {
 }
 
 #Sends the body and headers through the URL using the API (requests) package.
-response = requests.post(
-    url="https://api.openai.com/v1/responses",
-    headers=headers,
-    json=body,
-    timeout=60
-)
-
-#Loads the response as a Python structure, references the text output of the instructions provided and prints it for the user/SOC analyst.
-response_data = json.loads(response.text)
-message = response_data['output'][0]['content'][0]['text']
-print(message)
+try:
+    response = requests.post(
+        url="https://api.openai.com/v1/responses",
+        headers=headers,
+        json=body,
+        timeout=60
+    )
+    #Loads the response as a Python structure, references the text output of the instructions provided and prints it for the user/SOC analyst.
+    if response.status_code == 200:
+        response_data = json.loads(response.text)
+        message = response_data['output'][0]['content'][0]['text']
+        print(message)
+    elif response.status_code == 401:
+        print("Authentication failed. Check your API key.")
+    else:
+         print(f"API failed. {response.status_code}: {response.text}")
+except requests.exceptions.Timeout:
+     print("The request timed out.")
+except requests.exceptions.ConnectionError:
+     print("Couldn't connect to the API")

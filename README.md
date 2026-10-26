@@ -1,4 +1,4 @@
-# Password Spray Analyzer with AI Summaries
+# Password Spray Analyzer | Python, Docker & AI
 
 A Python-based cybersecurity project that analyzes sample Microsoft Entra ID sign-in events, identifies potential password-spraying activity, and generates concise, evidence-based investigation summaries using the OpenAI API.
 
